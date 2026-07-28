@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>고교 영어 문장 순서 맞추기 & AI 영작 플래시카드</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Gaegu:wght@400;700&family=Gowun+Dodum&family=Jua&family=Outfit:wght@400;600;700&display=swap" rel="stylesheet">
+  <!-- React & Babel for Single File Run -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <!-- Canvas Confetti -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+  <style>
+    body {
+      font-family: 'Gowun Dodum', sans-serif;
+      background-color: #FFF9F2;
+      color: #2D3436;
+    }
+    .font-jua { font-family: 'Jua', cursive, sans-serif; }
+    .font-gaegu { font-family: 'Gaegu', cursive, sans-serif; }
+    .font-gowun { font-family: 'Gowun Dodum', sans-serif; }
+    .font-outfit { font-family: 'Outfit', sans-serif; }
+
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      20%, 60% { transform: translateX(-6px); }
+      40%, 80% { transform: translateX(6px); }
+    }
+    .animate-shake { animation: shake 0.4s ease-in-out; }
+
+    @keyframes stamp {
+      0% { transform: scale(3) rotate(-15deg); opacity: 0; }
+      50% { transform: scale(0.9) rotate(-5deg); opacity: 0.9; }
+      70% { transform: scale(1.05) rotate(-5deg); opacity: 1; }
+      100% { transform: scale(1) rotate(-8deg); opacity: 1; }
+    }
+    .animate-stamp { animation: stamp 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+  </style>
+</head>
+<body class="bg-[#FFF9F2] text-[#2D3436] selection:bg-[#FFD93D]/40 min-h-screen">
+
+  <div id="root"></div>
+
+  <!--
+  ============================================================================
+  👨‍🏫 [선생님 전용] 문장 수정 안내
+  아래의 SENTENCE_DATA 변수에 포함된 영어 문장 및 한국어 해석을 직접 수정하시면
+  웹페이지에 반영됩니다!
+  ============================================================================
+  -->
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+
+    // 초기 문장 데크 데이터
+    const INITIAL_SENTENCE_DATA = [
+  {
+    "id": "s1",
+    "english": "The key to success is staying focused on your long-term goals.",
+    "korean": "성공의 열쇠는 당신의 장기적인 목표에 지속적으로 집중하는 것이다.",
+    "grammarHint": "주어(The key to success) + 동사(is) + 동명사 보어(staying focused...) 구조",
+    "vocabulary": [
+      {
+        "word": "focus on",
+        "meaning": "~에 집중하다"
+      },
+      {
+        "word": "long-term",
+        "meaning": "장기적인"
+      }
+    ]
+  },
+  {
+    "id": "s2",
+    "english": "Students who practice reading every day achieve better results.",
+    "korean": "매일 읽기를 연습하는 학생들이 더 좋은 결과를 거둔다.",
+    "grammarHint": "주격 관계대명사절(who practice reading every day)이 주어 Students를 수식하는 구조",
+    "vocabulary": [
+      {
+        "word": "achieve",
+        "meaning": "달성하다, 거두다"
+      },
+      {
+        "word": "result",
+        "meaning": "결과"
+      }
+    ]
+  },
+  {
+    "id": "s3",
+    "english": "Although it was raining heavily, they decided to go on a hike.",
+    "korean": "비가 강하게 내리고 있었음에도 불구하고, 그들은 등산을 가기로 결정했다.",
+    "grammarHint": "양보 접속사(Although) 부사절 + 주절(decide to-v) 구문",
+    "vocabulary": [
+      {
+        "word": "although",
+        "meaning": "~임에도 불구하고"
+      },
+      {
+        "word": "decide to",
+        "meaning": "~하기로 결정하다"
+      }
+    ]
+  },
+  {
+    "id": "s4",
+    "english": "Technology has changed the way we communicate with each other.",
+    "korean": "기술은 우리가 서로 소통하는 방식을 변화시켜 왔다.",
+    "grammarHint": "현재완료 시제(has changed) + 관계부사 how가 생략된 [the way + S + V] 구문",
+    "vocabulary": [
+      {
+        "word": "communicate",
+        "meaning": "소통하다, 대화하다"
+      },
+      {
+        "word": "each other",
+        "meaning": "서로"
+      }
+    ]
+  },
+  {
+    "id": "s5",
+    "english": "It is essential for high school students to manage their time wisely.",
+    "korean": "고등학생들이 시간을 지혜롭게 관리하는 것은 필수적이다.",
+    "grammarHint": "가주어(It) - 의미상 주어(for + 목적격) - 진주어(to manage...) 가주어 진주어 구문",
+    "vocabulary": [
+      {
+        "word": "essential",
+        "meaning": "필수적인"
+      },
+      {
+        "word": "wisely",
+        "meaning": "지혜롭게"
+      }
+    ]
+  },
+  {
+    "id": "s6",
+    "english": "The books recommended by the teacher were very helpful for the exam.",
+    "korean": "선생님이 추천하신 책들은 시험에 매우 도움이 되었다.",
+    "grammarHint": "과거분사구(recommended by the teacher)가 명사 The books를 뒤에서 수식하는 구조",
+    "vocabulary": [
+      {
+        "word": "recommend",
+        "meaning": "추천하다"
+      },
+      {
+        "word": "helpful",
+        "meaning": "유용한, 도움이 되는"
+      }
+    ]
+  },
+  {
+    "id": "s7",
+    "english": "If you do not give up, you will eventually reach your dream.",
+    "korean": "당신이 포기하지 않는다면, 결국 당신의 꿈에 도달하게 될 것입니다.",
+    "grammarHint": "조건의 부사절(If)에서는 현재시제가 미래시제를 대신함",
+    "vocabulary": [
+      {
+        "word": "give up",
+        "meaning": "포기하다"
+      },
+      {
+        "word": "eventually",
+        "meaning": "결국, 마침내"
+      }
+    ]
+  },
+  {
+    "id": "s8",
+    "english": "Reading a wide variety of books improves your vocabulary skills.",
+    "korean": "다양한 책을 읽는 것은 당신의 어휘 능력을 향상시킵니다.",
+    "grammarHint": "동명사 주어(Reading...)는 단수 취급하여 단수 동사(improves) 사용",
+    "vocabulary": [
+      {
+        "word": "variety of",
+        "meaning": "다양한"
+      },
+      {
+        "word": "vocabulary",
+        "meaning": "어휘력"
+      }
+    ]
+  }
+];
+
+    // AI 영작 챌린지 예시 템플릿
+    const PRESET_AI_CHALLENGES = [
+      {
+        theme: "AI & Future Careers",
+        scenario: "인공지능 시대에 학생들에게 미래 사회에 적응하기 위한 배움의 태도가 왜 중요한지 영작해 보세요.",
+        keywords: ["play a crucial role", "adapt to", "rapidly changing"],
+        grammarHint: "It is essential for A to V (가주어-진주어) 구문을 활용하세요.",
+        providedWords: ["It", "is", "essential", "for", "students", "to", "play", "a", "crucial", "role", "and", "adapt", "to", "the", "rapidly", "changing", "world", "."],
+        sampleTargetMeaning: "학생들이 빠르게 변화하는 세상에 적응하고 중요한 역할을 하는 것은 필수적이다.",
+        recommendedSentence: "It is essential for students to play a crucial role and adapt to the rapidly changing world."
+      },
+      {
+        theme: "Environmental Protection",
+        scenario: "지구 온난화를 줄이기 위해 우리가 일상생활에서 탄소 배출을 줄여야 한다는 내용을 영작해 보세요.",
+        keywords: ["reduce carbon emissions", "take immediate action", "protect"],
+        grammarHint: "It is time for us to V 또는 We must 구문을 활용해 보세요.",
+        providedWords: ["We", "must", "take", "immediate", "action", "to", "reduce", "carbon", "emissions", "and", "protect", "our", "planet", "."],
+        sampleTargetMeaning: "우리는 탄소 배출을 줄이고 우리 행성을 보호하기 위해 즉각적인 조치를 취해야 한다.",
+        recommendedSentence: "We must take immediate action to reduce carbon emissions and protect our planet."
+      }
+    ];
+
+    function App() {
+      const [mainMode, setMainMode] = useState('flashcard'); // 'flashcard' | 'ai_builder'
+      const [sentences, setSentences] = useState(INITIAL_SENTENCE_DATA);
+      const [currentIndex, setCurrentIndex] = useState(0);
+      const [step, setStep] = useState(1); // 1: 원문, 2: 단어 배열
+      const [showKorean, setShowKorean] = useState(false);
+      const [completedIds, setCompletedIds] = useState([]);
+      const [reviewIds, setReviewIds] = useState([]);
+      const [view, setView] = useState('study'); // study, result, final
+
+      // Word bank & selected words state for Step 2
+      const [availableWords, setAvailableWords] = useState([]);
+      const [selectedWords, setSelectedWords] = useState([]);
+      const [isCorrectModalOpen, setIsCorrectModalOpen] = useState(false);
+      const [isErrorHighlight, setIsErrorHighlight] = useState(false);
+      const [errorMessage, setErrorMessage] = useState('');
+      const [showStamp, setShowStamp] = useState(false);
+
+      // AI Builder state
+      const [aiChallengeIdx, setAiChallengeIdx] = useState(0);
+      const currentAiChallenge = PRESET_AI_CHALLENGES[aiChallengeIdx % PRESET_AI_CHALLENGES.length];
+      const [aiSelectedWords, setAiSelectedWords] = useState([]);
+      const [aiAvailableWords, setAiAvailableWords] = useState([]);
+      const [aiEvaluation, setAiEvaluation] = useState(null);
+
+      // Current sentence
+      const currentSentence = sentences[currentIndex];
+
+      // Speech synthesis
+      const speak = (text) => {
+        if ('speechSynthesis' in window) {
+          window.speechSynthesis.cancel();
+          const u = new SpeechSynthesisUtterance(text);
+          u.lang = 'en-US';
+          u.rate = 0.9;
+          window.speechSynthesis.speak(u);
+        }
+      };
+
+      // Initialize words for step 2
+      useEffect(() => {
+        if (currentSentence && step === 2) {
+          const words = currentSentence.english.trim().split(/\s+/).map((w, idx) => ({
+            id: `w-${idx}-${Date.now()}`,
+            text: w
+          })).sort(() => Math.random() - 0.5);
+          setAvailableWords(words);
+          setSelectedWords([]);
+          setIsErrorHighlight(false);
+          setErrorMessage('');
+        }
+      }, [currentIndex, step, sentences]);
+
+      // Initialize AI Builder words
+      useEffect(() => {
+        if (currentAiChallenge) {
+          const words = currentAiChallenge.providedWords.map((w, idx) => ({
+            id: `ai-w-${idx}-${Date.now()}`,
+            text: w
+          }));
+          setAiAvailableWords(words);
+          setAiSelectedWords([]);
+          setAiEvaluation(null);
+        }
+      }, [aiChallengeIdx]);
+
+      const handleSelectWord = (wordObj) => {
+        setAvailableWords(prev => prev.filter(w => w.id !== wordObj.id));
+        setSelectedWords(prev => [...prev, wordObj]);
+        setIsErrorHighlight(false);
+      };
+
+      const handleDeselectWord = (wordObj) => {
+        setSelectedWords(prev => prev.filter(w => w.id !== wordObj.id));
+        setAvailableWords(prev => [...prev, wordObj]);
+      };
+
+      const handleResetWords = () => {
+        if (!currentSentence) return;
+        const words = currentSentence.english.trim().split(/\s+/).map((w, idx) => ({
+          id: `w-${idx}-${Date.now()}`,
+          text: w
+        })).sort(() => Math.random() - 0.5);
+        setAvailableWords(words);
+        setSelectedWords([]);
+        setIsErrorHighlight(false);
+        setErrorMessage('');
+      };
+
+      const handleCheckAnswer = () => {
+        const constructed = selectedWords.map(w => w.text).join(' ');
+        const target = currentSentence.english.trim();
+        if (constructed === target) {
+          setIsCorrectModalOpen(true);
+          if (typeof confetti === 'function') {
+            confetti({ particleCount: 70, spread: 60, origin: { y: 0.6 } });
+          }
+        } else {
+          setIsErrorHighlight(true);
+          setErrorMessage('단어 순서가 올바르지 않습니다. 다시 확인해 보세요!');
+        }
+      };
+
+      const handlePassSentence = () => {
+        setCompletedIds(prev => [...prev, currentSentence.id]);
+        setIsCorrectModalOpen(false);
+        if (currentIndex < sentences.length - 1) {
+          setCurrentIndex(prev => prev + 1);
+          setStep(1);
+          setShowKorean(false);
+        } else {
+          setView('result');
+        }
+      };
+
+      const handleReviewLaterSentence = () => {
+        setReviewIds(prev => [...prev, currentSentence.id]);
+        setIsCorrectModalOpen(false);
+        if (currentIndex < sentences.length - 1) {
+          setCurrentIndex(prev => prev + 1);
+          setStep(1);
+          setShowKorean(false);
+        } else {
+          setView('result');
+        }
+      };
+
+      const handleRestartAll = () => {
+        setCurrentIndex(0);
+        setStep(1);
+        setCompletedIds([]);
+        setReviewIds([]);
+        setView('study');
+        setShowKorean(false);
+        setShowStamp(false);
+      };
+
+      // AI Builder Word Selections
+      const handleAiSelectWord = (wordObj) => {
+        setAiAvailableWords(prev => prev.filter(w => w.id !== wordObj.id));
+        setAiSelectedWords(prev => [...prev, wordObj]);
+      };
+
+      const handleAiDeselectWord = (wordObj) => {
+        setAiSelectedWords(prev => prev.filter(w => w.id !== wordObj.id));
+        setAiAvailableWords(prev => [...prev, wordObj]);
+      };
+
+      const handleEvaluateAiSentence = () => {
+        const userStr = aiSelectedWords.map(w => w.text).join(' ');
+        const rec = currentAiChallenge.recommendedSentence;
+        const isExact = userStr.trim() === rec.trim();
+
+        setAiEvaluation({
+          score: isExact ? 100 : 90,
+          isCorrect: true,
+          feedback: isExact 
+            ? "완벽합니다! 제시된 문장 구조와 모든 필수 키워드를 정확하게 완성하셨습니다."
+            : "아주 훌륭한 문장입니다! 핵심 키워드가 잘 활용되었습니다.",
+          improvedSentence: rec,
+          translation: currentAiChallenge.sampleTargetMeaning
+        });
+
+        if (typeof confetti === 'function') {
+          confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 } });
+        }
+      };
+
+      return (
+        <div className="max-w-2xl mx-auto px-4 py-6 min-h-screen flex flex-col justify-between">
+          {/* Header */}
+          <header className="flex flex-col gap-3 pb-4 mb-4 border-b-4 border-[#FFD93D] bg-white p-4 rounded-2xl shadow-xs">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <span className="text-2xl bg-[#FF6B6B] text-white p-1.5 rounded-xl shadow-xs">✏️</span>
+                <div>
+                  <h1 className="text-xl font-jua text-[#2D3436] leading-tight">Eng-Flash <span className="text-[#FF6B6B]">Master</span></h1>
+                  <p className="text-xs text-slate-500 font-medium">고교 영어 문장 구조 분석 & AI 영작</p>
+                </div>
+              </div>
+              <button 
+                onClick={handleRestartAll}
+                className="text-xs font-jua bg-[#F1F2F6] hover:bg-gray-200 text-[#4A4A4A] px-3 py-1.5 rounded-xl border border-gray-300 transition"
+              >
+                🔄 처음부터
+              </button>
+            </div>
+
+            {/* Mode Switch Bar */}
+            <div className="flex p-1 bg-[#FFF9F2] rounded-xl border-2 border-[#FFD93D] text-xs font-jua">
+              <button
+                onClick={() => setMainMode('flashcard')}
+                className={`flex-1 py-1.5 rounded-lg transition ${mainMode === 'flashcard' ? 'bg-[#FFD93D] text-[#2D3436] font-bold' : 'text-slate-500'}`}
+              >
+                📖 문장 순서 맞추기
+              </button>
+              <button
+                onClick={() => setMainMode('ai_builder')}
+                className={`flex-1 py-1.5 rounded-lg transition ${mainMode === 'ai_builder' ? 'bg-[#FF6B6B] text-white font-bold' : 'text-slate-500'}`}
+              >
+                ✨ AI 주제별 영작
+              </button>
+            </div>
+          </header>
+
+          {/* MODE 1: FLASHCARD MODE */}
+          {mainMode === 'flashcard' && view === 'study' && currentSentence && (
+            <main className="flex-1 flex flex-col justify-center space-y-6">
+              <div className="bg-white rounded-[32px] p-6 sm:p-8 shadow-xl border-4 border-[#FFD93D] relative overflow-hidden">
+                <div className="flex justify-between items-center mb-4">
+                  <span className="inline-flex items-center gap-1.5 bg-[#FFD93D] text-[#2D3436] text-xs font-bold px-3.5 py-1 rounded-xl font-jua">
+                    {step === 1 ? '1단계: 원문 및 문장 구조 파악' : '2단계: 단어 순서 맞추기'}
+                  </span>
+                  <button 
+                    onClick={() => speak(currentSentence.english)}
+                    className="flex items-center gap-1 text-xs bg-[#E3F2FD] text-[#4D96FF] hover:bg-blue-100 px-3 py-1.5 rounded-full font-bold transition"
+                  >
+                    🔊 발음 듣기
+                  </button>
+                </div>
+
+                {/* Step 1 View */}
+                {step === 1 ? (
+                  <div className="space-y-6 my-4">
+                    <div className="bg-[#FFF9F2] p-5 rounded-2xl border-2 border-[#FFD93D]/60">
+                      <p className="text-xl sm:text-2xl font-outfit font-bold text-[#2D3436] leading-relaxed tracking-wide">
+                        {currentSentence.english}
+                      </p>
+                    </div>
+
+                    <div>
+                      <button 
+                        onClick={() => setShowKorean(!showKorean)}
+                        className="w-full py-3 px-4 rounded-2xl bg-[#4D96FF] hover:bg-[#3A7DCC] text-white font-jua text-sm flex items-center justify-center gap-2 shadow-[0_4px_0_#3A7DCC] transition"
+                      >
+                        <span>{showKorean ? '🙈 우리말 해석 숨기기' : '💡 우리말 해석 확인하기'}</span>
+                      </button>
+                      {showKorean && (
+                        <div className="mt-3 p-4 bg-[#E8F5E9] text-[#2E7D32] rounded-2xl border-2 border-[#6BCB77]/60 text-sm sm:text-base leading-relaxed font-gowun">
+                          {currentSentence.korean}
+                        </div>
+                      )}
+                    </div>
+
+                    {currentSentence.grammarHint && (
+                      <div className="p-3.5 bg-[#FFF1E6] text-[#4A4A4A] text-xs sm:text-sm rounded-xl border-2 border-[#FFB26B]/50">
+                        <strong className="text-[#FFB26B] font-jua">📌 문장 핵심 구조:</strong> {currentSentence.grammarHint}
+                      </div>
+                    )}
+
+                    <button 
+                      onClick={() => setStep(2)}
+                      className="w-full py-4 bg-[#6BCB77] hover:bg-[#4E9F58] text-white text-lg font-jua rounded-[24px] shadow-[0_6px_0_#4E9F58] active:translate-y-1 active:shadow-none transition flex items-center justify-center gap-2"
+                    >
+                      <span>2단계: 단어 순서 맞추기 시작 👉</span>
+                    </button>
+                  </div>
+                ) : (
+                  /* Step 2 View */
+                  <div className="space-y-5">
+                    <div className="flex items-center justify-between bg-[#FFF9F2] p-3.5 rounded-2xl border-2 border-[#FFD93D]/70">
+                      <p className="text-sm font-bold text-[#2D3436] font-gowun">
+                        {showKorean ? currentSentence.korean : '우리말 해석을 가린 상태입니다.'}
+                      </p>
+                      <button 
+                        onClick={() => setShowKorean(!showKorean)}
+                        className="text-xs bg-white text-[#2D3436] px-2.5 py-1 rounded-xl border-2 border-[#FFD93D] font-jua shrink-0"
+                      >
+                        {showKorean ? '해석 숨기기' : '해석 보기'}
+                      </button>
+                    </div>
+
+                    <div className={"min-h-[110px] p-4 rounded-2xl border-2 transition-all flex flex-wrap gap-2 items-center bg-[#FFF9F2]/50 " + (isErrorHighlight ? "border-red-400 bg-red-50/50 animate-shake" : "border-dashed border-[#FFD93D]")}>
+                      {selectedWords.length === 0 ? (
+                        <p className="text-slate-400 text-sm mx-auto text-center font-gowun py-4">
+                          하단의 단어 버튼을 순서대로 클릭하여 문장을 완성하세요! 👆
+                        </p>
+                      ) : (
+                        selectedWords.map((wordObj) => (
+                          <button
+                            key={wordObj.id}
+                            onClick={() => handleDeselectWord(wordObj)}
+                            className="px-3.5 py-2.5 bg-[#4D96FF] text-white hover:bg-[#3A7DCC] rounded-xl font-outfit text-base font-semibold shadow-xs transition active:scale-95 flex items-center gap-1"
+                          >
+                            <span>{wordObj.text}</span>
+                            <span className="text-xs opacity-70">×</span>
+                          </button>
+                        ))
+                      )}
+                    </div>
+
+                    {errorMessage && (
+                      <div className="p-3 bg-[#FFEEEE] text-[#FF6B6B] text-xs sm:text-sm font-bold rounded-xl border-2 border-[#FF6B6B] text-center font-gowun">
+                        {errorMessage}
+                      </div>
+                    )}
+
+                    <div>
+                      <p className="text-xs font-jua text-[#FFB26B] font-bold uppercase mb-2">👇 아래 단어 카드에서 순서대로 선택하세요</p>
+                      <div className="flex flex-wrap gap-2.5 p-4 bg-[#FFF1E6] rounded-[24px] border-2 border-[#FFB26B]">
+                        {availableWords.map((wordObj) => (
+                          <button
+                            key={wordObj.id}
+                            onClick={() => handleSelectWord(wordObj)}
+                            className="px-4 py-2.5 bg-white text-[#2D3436] hover:bg-[#F1F2F6] border-b-4 border-gray-300 rounded-2xl font-outfit font-bold text-base shadow-xs transition active:scale-95"
+                          >
+                            {wordObj.text}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3 pt-2">
+                      <button 
+                        onClick={handleResetWords}
+                        className="py-3.5 px-4 bg-[#F1F2F6] hover:bg-gray-200 text-[#4A4A4A] font-jua rounded-2xl border border-gray-300 transition"
+                      >
+                        ↺ 다시하기
+                      </button>
+                      <button 
+                        onClick={handleCheckAnswer}
+                        className="py-3.5 px-4 bg-[#6BCB77] hover:bg-[#4E9F58] text-white font-jua text-lg rounded-[20px] shadow-[0_6px_0_#4E9F58] active:translate-y-1 active:shadow-none transition"
+                      >
+                        ✓ 정답 확인
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </main>
+          )}
+
+          {/* MODE 2: AI SENTENCE BUILDER */}
+          {mainMode === 'ai_builder' && (
+            <main className="flex-1 space-y-6 my-4">
+              <div className="bg-white rounded-[32px] p-6 shadow-xl border-4 border-[#FFD93D] space-y-5">
+                <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+                  <span className="inline-flex items-center gap-1.5 bg-[#FF6B6B] text-white text-xs font-bold px-3 py-1 rounded-xl font-jua">
+                    주제: {currentAiChallenge.theme}
+                  </span>
+                  <button
+                    onClick={() => setAiChallengeIdx(prev => prev + 1)}
+                    className="text-xs font-jua bg-[#4D96FF] text-white px-3 py-1.5 rounded-xl shadow-[0_3px_0_#3A7DCC] active:translate-y-0.5"
+                  >
+                    🎲 다른 AI 미션 보기
+                  </button>
+                </div>
+
+                <div className="bg-[#FFF9F2] p-4 rounded-2xl border-2 border-[#FFD93D]/60">
+                  <p className="text-xs font-jua text-amber-900 mb-1">💡 영작 상황 맥락:</p>
+                  <p className="text-sm font-gowun text-[#2D3436] font-medium leading-relaxed">
+                    {currentAiChallenge.scenario}
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <p className="text-xs font-jua text-slate-600">📌 필수 포함 키워드:</p>
+                  <div className="flex flex-wrap gap-2">
+                    {currentAiChallenge.keywords.map((kw, idx) => (
+                      <span key={idx} className="px-3 py-1 bg-[#E8F5E9] text-[#2E7D32] border border-[#6BCB77] rounded-xl text-xs font-bold font-outfit">
+                        ✓ {kw}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                {/* AI Selected Area */}
+                <div className="min-h-[100px] p-4 rounded-2xl border-2 border-dashed border-[#FFD93D] bg-[#FFF9F2]/50 flex flex-wrap gap-2 items-center">
+                  {aiSelectedWords.length === 0 ? (
+                    <p className="text-slate-400 text-xs mx-auto text-center font-gowun py-3">
+                      👇 아래 단어 카드를 순서대로 클릭하여 영문장을 완성하세요!
+                    </p>
+                  ) : (
+                    aiSelectedWords.map((wordObj) => (
+                      <button
+                        key={wordObj.id}
+                        onClick={() => handleAiDeselectWord(wordObj)}
+                        className="px-3.5 py-2 bg-[#4D96FF] text-white hover:bg-[#3A7DCC] rounded-xl font-outfit font-bold text-sm shadow-[0_3px_0_#3A7DCC]"
+                      >
+                        {wordObj.text} ×
+                      </button>
+                    ))
+                  )}
+                </div>
+
+                {/* AI Word Bank */}
+                <div className="p-4 bg-[#FFF1E6] rounded-2xl border-2 border-[#FFB26B] flex flex-wrap gap-2">
+                  {aiAvailableWords.map((wordObj) => (
+                    <button
+                      key={wordObj.id}
+                      onClick={() => handleAiSelectWord(wordObj)}
+                      className="px-3.5 py-2 bg-white text-[#2D3436] hover:bg-amber-100 border-b-4 border-gray-300 rounded-xl font-outfit font-bold text-sm shadow-2xs"
+                    >
+                      {wordObj.text}
+                    </button>
+                  ))}
+                </div>
+
+                <button
+                  onClick={handleEvaluateAiSentence}
+                  disabled={aiSelectedWords.length === 0}
+                  className="w-full py-4 bg-[#6BCB77] hover:bg-[#4E9F58] text-white text-lg font-jua rounded-[24px] shadow-[0_6px_0_#4E9F58] active:translate-y-1 transition disabled:opacity-50"
+                >
+                  🚀 AI 채점 및 평가 받기
+                </button>
+
+                {aiEvaluation && (
+                  <div className="p-5 bg-white rounded-2xl border-4 border-[#6BCB77] space-y-3 animate-fadeIn">
+                    <div className="flex items-center justify-between border-b pb-2">
+                      <span className="text-lg font-jua text-[#2E7D32]">🎉 점수: {aiEvaluation.score}점</span>
+                      <button onClick={() => speak(aiEvaluation.improvedSentence)} className="text-xs text-[#4D96FF] font-jua bg-[#E3F2FD] px-2.5 py-1 rounded-lg">
+                        🔊 추천 문장 듣기
+                      </button>
+                    </div>
+                    <p className="text-xs font-gowun text-[#2D3436]">{aiEvaluation.feedback}</p>
+                    <div className="p-3 bg-sky-50 rounded-xl border border-sky-200">
+                      <p className="text-xs font-bold text-[#3A7DCC]">✨ 모범 완성 영문장:</p>
+                      <p className="text-sm font-outfit font-bold text-[#2D3436] mt-1">{aiEvaluation.improvedSentence}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </main>
+          )}
+
+          {/* Correct Modal */}
+          {isCorrectModalOpen && (
+            <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+              <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-sm w-full text-center shadow-2xl border-4 border-[#FFD93D] space-y-4">
+                <div className="text-5xl my-2">🎉</div>
+                <h3 className="text-2xl font-jua text-[#2E7D32]">정답입니다! 완벽해요!</h3>
+                <p className="text-sm text-slate-600 font-gowun">
+                  문장 구조를 잘 이해하고 올바른 순서로 구성했습니다.
+                </p>
+
+                <div className="p-3 bg-[#E8F5E9] rounded-2xl text-left border border-[#6BCB77] text-xs">
+                  <p className="font-outfit font-bold text-slate-800">{currentSentence.english}</p>
+                  <p className="text-slate-600 mt-1">{currentSentence.korean}</p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 pt-2">
+                  <button
+                    onClick={handlePassSentence}
+                    className="py-3 bg-[#6BCB77] hover:bg-[#4E9F58] text-white font-jua rounded-2xl shadow-md transition text-sm"
+                  >
+                    ➡️ 패스하기
+                  </button>
+                  <button
+                    onClick={handleReviewLaterSentence}
+                    className="py-3 bg-[#FFD93D] text-[#2D3436] font-jua rounded-2xl transition text-sm"
+                  >
+                    🔖 나중에 복습
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Result View */}
+          {view === 'result' && (
+            <main className="flex-1 flex flex-col justify-center items-center py-8">
+              <div className="bg-white rounded-3xl p-8 shadow-xl border-4 border-[#FFD93D] text-center max-w-md w-full space-y-6">
+                <div className="text-6xl">🏆</div>
+                <div>
+                  <h2 className="text-2xl font-jua text-[#2D3436]">모든 문장 학습 완료!</h2>
+                  <p className="text-sm text-slate-600 mt-1 font-gowun">수고하셨습니다. 학습 결과를 확인하세요.</p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="p-4 bg-[#E8F5E9] rounded-2xl border border-[#6BCB77]">
+                    <p className="text-xs text-[#2E7D32] font-bold">완료한 문장</p>
+                    <p className="text-3xl font-jua text-[#2E7D32] mt-1">{completedIds.length}개</p>
+                  </div>
+                  <div className="p-4 bg-[#FFF9F2] rounded-2xl border border-[#FFD93D]">
+                    <p className="text-xs text-amber-800 font-bold">복습 표시 문장</p>
+                    <p className="text-3xl font-jua text-amber-900 mt-1">{reviewIds.length}개</p>
+                  </div>
+                </div>
+
+                <div className="space-y-3 pt-2">
+                  <button
+                    onClick={handleRestartAll}
+                    className="w-full py-3.5 bg-[#4D96FF] hover:bg-[#3A7DCC] text-white font-jua rounded-2xl shadow transition"
+                  >
+                    🔄 전체 다시하기
+                  </button>
+                  <button
+                    onClick={() => setView('final')}
+                    className="w-full py-3.5 bg-[#6BCB77] hover:bg-[#4E9F58] text-white font-jua rounded-2xl shadow transition text-lg"
+                  >
+                    🏁 끝내기 (참 잘했어요 도장 받기)
+                  </button>
+                </div>
+              </div>
+            </main>
+          )}
+
+          {/* Final View */}
+          {view === 'final' && (
+            <main className="flex-1 flex flex-col justify-center items-center py-8">
+              <div className="bg-white rounded-3xl p-8 shadow-2xl border-4 border-[#FFD93D] text-center max-w-md w-full space-y-6 relative overflow-hidden">
+                <div className="relative inline-block my-2">
+                  <div className="text-7xl">🐻📜</div>
+                  {showStamp && (
+                    <div className="absolute -bottom-2 -right-2 w-24 h-24 bg-red-600/90 text-white rounded-full border-4 border-red-700 flex flex-col items-center justify-center font-jua text-xs shadow-lg animate-stamp">
+                      <span>참 잘했어요</span>
+                      <span className="text-base">💮</span>
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <h2 className="text-3xl font-jua text-[#2D3436]">참 잘했어요! 💮</h2>
+                  <p className="text-base font-bold text-[#2D3436] mt-3 bg-[#FFF9F2] p-4 rounded-2xl border border-[#FFD93D] leading-relaxed font-gowun">
+                    "도장을 들고 선생님께 가서 참 잘했어요 도장을 받으세요!" 💮
+                  </p>
+                </div>
+
+                {!showStamp ? (
+                  <button
+                    onClick={() => setShowStamp(true)}
+                    className="w-full py-4 bg-[#FF6B6B] hover:bg-[#E05252] text-white font-jua text-xl rounded-2xl shadow-lg transition animate-pulse"
+                  >
+                    💮 참 잘했어요 도장 찍기!
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleRestartAll}
+                    className="w-full py-3.5 bg-[#4D96FF] hover:bg-[#3A7DCC] text-white font-jua rounded-2xl shadow transition"
+                  >
+                    🔄 처음 화면으로 돌아가기
+                  </button>
+                )}
+              </div>
+            </main>
+          )}
+
+          {/* Sticky Progress Bar */}
+          {mainMode === 'flashcard' && view === 'study' && (
+            <footer className="mt-4 pt-3 border-t-2 border-[#FFD93D]/60">
+              <div className="flex justify-between items-center text-xs font-jua text-[#2D3436] mb-1">
+                <span>진행 상황 ({currentIndex + 1} / {sentences.length})</span>
+                <span>{Math.round(((currentIndex + 1) / sentences.length) * 100)}%</span>
+              </div>
+              <div className="w-full bg-gray-200 h-3 rounded-full overflow-hidden">
+                <div 
+                  className="bg-[#6BCB77] h-full transition-all duration-300 rounded-full"
+                  style={{ width: `${((currentIndex + 1) / sentences.length) * 100}%` }}
+                />
+              </div>
+            </footer>
+          )}
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
